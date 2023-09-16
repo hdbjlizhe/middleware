@@ -16,11 +16,18 @@ func localUrl() string {
 }
 
 /**
+ * @description: 设置端口号
+ */
+func SetPort() {
+	Port = os.Args[1]
+}
+
+/**
  * @description: 获取消息发送者ID
  * @return {string}
  */
 func GetSenderID() string {
-	return os.Args[1]
+	return os.Args[2]
 }
 
 /**
