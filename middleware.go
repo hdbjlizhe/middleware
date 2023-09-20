@@ -194,9 +194,9 @@ func BucketKeys(bucket, value string) string {
  * @description: 获取指定数据桶所有的key集合
  * @param {string} bucket
  */
-func BucketAllKeys(bucket string) string {
+func BucketAllKeys(bucket string) []string {
 	resp, _ := httplib.Get(localUrl() + "/bucketAllKeys?bucket=" + url.QueryEscape(bucket)).String()
-	return resp
+	return strings.Split(resp, ",")
 }
 
 /**
