@@ -39,9 +39,9 @@ func GetSenderID() string {
  * @param {string} content 内容
  * @return {*}
  */
-func Push(imtType, groupCode, userID, title, content string) error {
+func Push(imType, groupCode, userID, title, content string) error {
 	params := url.Values{
-		"imtType":   {imtType},
+		"imType":   {imType},
 		"groupCode": {groupCode},
 		"userID":    {userID},
 		"title":     {title},
