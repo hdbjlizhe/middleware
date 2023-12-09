@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/beego/beego/v2/client/httplib"
@@ -41,7 +42,7 @@ func GetSenderID() string {
  */
 func Push(imType, groupCode, userID, title, content string) error {
 	params := url.Values{
-		"imType":   {imType},
+		"imType":    {imType},
 		"groupCode": {groupCode},
 		"userID":    {userID},
 		"title":     {title},
@@ -306,7 +307,7 @@ func (s *Sender) BreakIn(content string) error {
 }
 
 func (s *Sender) Param(index int) string {
-	resp, _ := httplib.Get(localUrl() + "/param?senderid=" + s.SenderID + "&index=" + string(index)).String()
+	resp, _ := httplib.Get(localUrl() + "/param?senderid=" + s.SenderID + "&index=" + strconv.Itoa(index)).String()
 	return resp
 }
 
@@ -321,7 +322,7 @@ func (s *Sender) Reply(text string) error {
 }
 
 func (s *Sender) ReplyImage(imageurl string) error {
-	if resp, err := httplib.Get(localUrl() + "/sendImage?senderid=" + s.SenderID + "&imageurl=" + url.QueryEscape(imageurl)).String(); err != nil {
+	if resp, err := httplib.Get(localUrl() + "/replyImage?senderid=" + s.SenderID + "&imageurl=" + url.QueryEscape(imageurl)).String(); err != nil {
 		return err
 	} else if resp != "ok" {
 		return errors.New("回复图片失败")
@@ -331,7 +332,7 @@ func (s *Sender) ReplyImage(imageurl string) error {
 }
 
 func (s *Sender) ReplyVoice(voiceurl string) error {
-	if resp, err := httplib.Get(localUrl() + "/sendVoice?senderid=" + s.SenderID + "&voiceurl=" + url.QueryEscape(voiceurl)).String(); err != nil {
+	if resp, err := httplib.Get(localUrl() + "/replyVoice?senderid=" + s.SenderID + "&voiceurl=" + url.QueryEscape(voiceurl)).String(); err != nil {
 		return err
 	} else if resp != "ok" {
 		return errors.New("回复语音失败")
@@ -341,7 +342,7 @@ func (s *Sender) ReplyVoice(voiceurl string) error {
 }
 
 func (s *Sender) ReplyVideo(videourl string) error {
-	if resp, err := httplib.Get(localUrl() + "/sendVideo?senderid=" + s.SenderID + "&videourl=" + url.QueryEscape(videourl)).String(); err != nil {
+	if resp, err := httplib.Get(localUrl() + "/replyVideo?senderid=" + s.SenderID + "&videourl=" + url.QueryEscape(videourl)).String(); err != nil {
 		return err
 	} else if resp != "ok" {
 		return errors.New("回复视频失败")
