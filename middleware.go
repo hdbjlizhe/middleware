@@ -307,7 +307,8 @@ func (s *Sender) BreakIn(content string) error {
 }
 
 func (s *Sender) Param(index int) string {
-	resp, _ := httplib.Get(localUrl() + "/param?senderid=" + s.SenderID + "&index=" + strconv.Itoa(index)).String()
+	i := strconv.Itoa(index)
+	resp, _ := httplib.Get(localUrl() + "/param?senderid=" + s.SenderID + "&index=" + i).String()
 	return resp
 }
 
