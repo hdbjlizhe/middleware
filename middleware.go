@@ -282,11 +282,19 @@ func (s *Sender) GetMessage() string {
 	return resp
 }
 
+/*
+* @description: 获取消息ID
+* @return {string} 消息ID
+ */
 func (s *Sender) GetMessageID() string {
 	resp, _ := httplib.Get(localUrl() + "/getMessageID?senderid=" + s.SenderID).String()
 	return resp
 }
 
+/*
+* @description: 撤回用户消息
+* @param {string} messageid 消息ID
+ */
 func (s *Sender) RecallMessage(messageid string) error {
 	if resp, err := httplib.Get(localUrl() + "/recallMessage?senderid=" + s.SenderID + "&messageid=" + messageid).String(); err != nil {
 		return err
@@ -297,6 +305,10 @@ func (s *Sender) RecallMessage(messageid string) error {
 	}
 }
 
+/*
+* @description: 即，模拟当前用户的身份，修改用户输入的内容，将新内容注入到消息队列中，多用于通过关键词拉起其他插件或任务
+* @param {string} content 消息内容
+ */
 func (s *Sender) BreakIn(content string) error {
 	if resp, err := httplib.Get(localUrl() + "/breakIn?senderid=" + s.SenderID + "&text=" + url.QueryEscape(content)).String(); err != nil {
 		return err
@@ -307,12 +319,21 @@ func (s *Sender) BreakIn(content string) error {
 	}
 }
 
+/*
+* @description: 获取用户触发的关键词，对应头注中rule规则中的小括号或问号
+* @param {int} index 参数索引
+* @return {string} 参数值
+ */
 func (s *Sender) Param(index int) string {
 	i := strconv.Itoa(index)
 	resp, _ := httplib.Get(localUrl() + "/param?senderid=" + s.SenderID + "&index=" + i).String()
 	return resp
 }
 
+/*
+* @description: 回复文本
+* @param {string} text 文本内容，文本中可以使用CQ码，例如：[CQ:at,qq=123456]，[CQ:image,file=xxx.jpg]
+ */
 func (s *Sender) Reply(text string) error {
 	if resp, err := httplib.Get(localUrl() + "/sendText?senderid=" + s.SenderID + "&text=" + url.QueryEscape(text)).String(); err != nil {
 		return err
@@ -323,6 +344,11 @@ func (s *Sender) Reply(text string) error {
 	}
 }
 
+/*
+* @description: 回复图片
+* @param {string} imageurl 图片链接
+* @return {[]string} 消息ID
+ */
 func (s *Sender) ReplyImage(imageurl string) ([]string, error) {
 	var msgIds []string
 	if resp, err := httplib.Get(localUrl() + "/sendImage?senderid=" + s.SenderID + "&imageurl=" + url.QueryEscape(imageurl)).Bytes(); err != nil {
@@ -334,6 +360,11 @@ func (s *Sender) ReplyImage(imageurl string) ([]string, error) {
 	}
 }
 
+/*
+* @description: 回复语音
+* @param {string} voiceurl 语音链接
+* @return {[]string} 消息ID
+ */
 func (s *Sender) ReplyVoice(voiceurl string) ([]string, error) {
 	var msgIds []string
 	if resp, err := httplib.Get(localUrl() + "/sendVoice?senderid=" + s.SenderID + "&voiceurl=" + url.QueryEscape(voiceurl)).String(); err != nil {
@@ -345,6 +376,11 @@ func (s *Sender) ReplyVoice(voiceurl string) ([]string, error) {
 	}
 }
 
+/*
+* @description: 回复视频
+* @param {string} videourl 视频链接
+* @return {[]string} 消息ID
+ */
 func (s *Sender) ReplyVideo(videourl string) ([]string, error) {
 	var msgIds []string
 	if resp, err := httplib.Get(localUrl() + "/sendVideo?senderid=" + s.SenderID + "&videourl=" + url.QueryEscape(videourl)).String(); err != nil {
@@ -356,16 +392,29 @@ func (s *Sender) ReplyVideo(videourl string) ([]string, error) {
 	}
 }
 
+/*
+* @description: 等待用户输入
+* @param {string} timeout 超时，单位：毫秒
+* @return {string} 用户输入的消息
+ */
 func (s *Sender) Listen(timeout int) string {
-	resp, _ := httplib.Get(localUrl() + "/listen?senderid=" + s.SenderID + "&timeout=" + string(timeout)).String()
+	resp, _ := httplib.Get(localUrl() + "/listen?senderid=" + s.SenderID + "&timeout=" + strconv.Itoa(timeout)).String()
 	return resp
 }
 
+/*
+* @description: 等待用户支付
+* @param {string} timeout 超时，单位：毫秒
+* @return {string} 用户支付信息json字符串
+ */
 func (s *Sender) WaitPay(eixtCode string, timeout int) string {
-	resp, _ := httplib.Get(localUrl() + "/waitPay?senderid=" + s.SenderID + "&eixtCode=" + eixtCode + "&timeout=" + string(timeout)).String()
+	resp, _ := httplib.Get(localUrl() + "/waitPay?senderid=" + s.SenderID + "&eixtCode=" + eixtCode + "&timeout=" + strconv.Itoa(timeout)).String()
 	return resp
 }
 
+/*
+* @description: 判断当前是否处于等待用户支付状态
+ */
 func (s *Sender) AtWaitPay() bool {
 	resp, _ := httplib.Get(localUrl() + "/atWaitPay?senderid=" + s.SenderID).String()
 	return resp == "true"
@@ -392,7 +441,7 @@ func (s *Sender) GroupKick(userid string) error {
 }
 
 func (s *Sender) GroupBan(userid string, timeout int) error {
-	if resp, err := httplib.Get(localUrl() + "/groupBan?senderid=" + s.SenderID + "&userid=" + userid + "&timeout=" + string(timeout)).String(); err != nil {
+	if resp, err := httplib.Get(localUrl() + "/groupBan?senderid=" + s.SenderID + "&userid=" + userid + "&timeout=" + strconv.Itoa(timeout)).String(); err != nil {
 		return err
 	} else if resp != "ok" {
 		return errors.New("禁言失败")
