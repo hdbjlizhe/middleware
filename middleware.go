@@ -323,7 +323,7 @@ func (s *Sender) Reply(text string) error {
 }
 
 func (s *Sender) ReplyImage(imageurl string) error {
-	if resp, err := httplib.Get(localUrl() + "/replyImage?senderid=" + s.SenderID + "&imageurl=" + url.QueryEscape(imageurl)).String(); err != nil {
+	if resp, err := httplib.Get(localUrl() + "/sendImage?senderid=" + s.SenderID + "&imageurl=" + url.QueryEscape(imageurl)).String(); err != nil {
 		return err
 	} else if resp != "ok" {
 		return errors.New("回复图片失败")
@@ -333,7 +333,7 @@ func (s *Sender) ReplyImage(imageurl string) error {
 }
 
 func (s *Sender) ReplyVoice(voiceurl string) error {
-	if resp, err := httplib.Get(localUrl() + "/replyVoice?senderid=" + s.SenderID + "&voiceurl=" + url.QueryEscape(voiceurl)).String(); err != nil {
+	if resp, err := httplib.Get(localUrl() + "/sendVoice?senderid=" + s.SenderID + "&voiceurl=" + url.QueryEscape(voiceurl)).String(); err != nil {
 		return err
 	} else if resp != "ok" {
 		return errors.New("回复语音失败")
@@ -343,7 +343,7 @@ func (s *Sender) ReplyVoice(voiceurl string) error {
 }
 
 func (s *Sender) ReplyVideo(videourl string) error {
-	if resp, err := httplib.Get(localUrl() + "/replyVideo?senderid=" + s.SenderID + "&videourl=" + url.QueryEscape(videourl)).String(); err != nil {
+	if resp, err := httplib.Get(localUrl() + "/sendVideo?senderid=" + s.SenderID + "&videourl=" + url.QueryEscape(videourl)).String(); err != nil {
 		return err
 	} else if resp != "ok" {
 		return errors.New("回复视频失败")
