@@ -265,7 +265,7 @@ func Promotion(msg string) string {
 }
 
 type Sender struct {
-	SenderID int64
+	SenderID string
 }
 
 func (s *Sender) GetImtype() string {
