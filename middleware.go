@@ -508,7 +508,7 @@ func (s *Sender) Listen(timeout int) string {
 		"timeout":  timeout,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/listen").Header("Content-Type", "application/json").Body(body).SetTimeout(time.Millisecond * time.Duration(timeout)).Bytes()
+	resp, _ := httplib.Post(localUrl()+"/listen").Header("Content-Type", "application/json").Body(body).SetTimeout(time.Millisecond * time.Duration(timeout),time.Millisecond*time.Duration(timeout)).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
