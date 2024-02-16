@@ -309,13 +309,13 @@ func (s *Sender) GetUserAvatarUrl() string {
 	return rlt
 }
 
-func (s *Sender) GetChatID() int64 {
+func (s *Sender) GetChatID() string {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
 	resp, _ := httplib.Post(localUrl()+"/getChatID").Header("Content-Type", "application/json").Body(body).Bytes()
-	rlt, _ := jsonparser.GetInt(resp, "data")
+	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
 
