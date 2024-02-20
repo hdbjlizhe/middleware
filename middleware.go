@@ -425,7 +425,7 @@ func (s *Sender) Reply(text string) ([]string, error) {
 	body, _ := json.Marshal(params)
 	var msgIds []string
 	if resp, err := httplib.Post(localUrl()+"/sendText").Header("Content-Type", "application/json").Body(body).Bytes(); err == nil {
-		if data, err := jsonparser.GetString(resp, "data"); err == nil {
+		if data, err := jsonparser.GetUnsafeString(resp, "data"); err == nil {
 			json.Unmarshal([]byte(data), &msgIds)
 			return msgIds, nil
 		}
