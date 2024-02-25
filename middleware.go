@@ -37,7 +37,7 @@ func SetPort() {
  * @param {string} userid 用户ID
  * @param {func(string)} func 消息监听句柄，回调函数
  */
-func AddMsgListener(chatid, userid string, exitChannel chan struct{}, function func(string)) {
+func AddMsgListener(imtype,chatid, userid string, exitChannel chan struct{}, function func(string)) {
 	//创建ess连接
 	url := fmt.Sprintf("%s/msghook", localUrl())
 
@@ -50,7 +50,7 @@ func AddMsgListener(chatid, userid string, exitChannel chan struct{}, function f
 	// 设置Header
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Content-Type", "application/json")
-	req.Body = io.NopCloser(strings.NewReader(fmt.Sprintf(`{"imtype":"tg","chatid":"%s","userid":"%s"}`, chatid, userid)))
+	req.Body = io.NopCloser(strings.NewReader(fmt.Sprintf(`{"imtype":"%s","chatid":"%s","userid":"%s"}`,imtype, chatid, userid)))
 
 	// 发起请求
 	client := &http.Client{}
