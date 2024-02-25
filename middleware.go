@@ -1,9 +1,14 @@
 package middleware
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/httplib"
@@ -24,6 +29,67 @@ func localUrl() string {
  */
 func SetPort() {
 	Port = os.Args[1]
+}
+
+/**
+ * @description: 添加消息监听句柄
+ * @param {string} chatid 群组ID
+ * @param {string} userid 用户ID
+ * @param {func(string)} func 消息监听句柄，回调函数
+ */
+func AddMsgListener(chatid, userid string, exitChannel chan struct{}, function func(string)) {
+	//创建ess连接
+	url := fmt.Sprintf("%s/msghook", localUrl())
+
+	// 向SSE服务端发起POST请求
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		fmt.Printf("Error creating request: %v\n", err)
+		return
+	}
+	// 设置Header
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Content-Type", "application/json")
+	req.Body = io.NopCloser(strings.NewReader(fmt.Sprintf(`{"imtype":"tg","chatid":"%s","userid":"%s"}`, chatid, userid)))
+
+	// 发起请求
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("Error making request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// 使用bufio.NewReader来按行读取服务端发送的数据
+	reader := bufio.NewReader(resp.Body)
+
+	go func() {
+		for {
+			// 按行读取数据
+			data, err := reader.ReadBytes('\n')
+			if err != nil {
+				fmt.Printf("Read error: %v\n", err)
+				break
+			} else {
+				fmt.Printf("Read: %s\n", data)
+			}
+			// 这里简单地打印出来，实际应用中可能需要根据行的内容进行解析
+			msg := strings.TrimSuffix(string(data), "\n")
+			fmt.Printf("Received: %s", msg)
+			if strings.Contains(msg, "event:message") {
+				continue
+			} else {
+				msg = strings.TrimLeft(msg, "data:")
+			}
+
+			// 处理消息
+			msg = strings.ReplaceAll(msg, "\\n", "\n")
+			function(msg)
+		}
+	}()
+
+	<-exitChannel
 }
 
 /**
