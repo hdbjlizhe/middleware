@@ -335,6 +335,16 @@ type Sender struct {
 	SenderID string
 }
 
+func (s *Sender) SetContinue() bool {
+	params := map[string]interface{}{
+		"senderid": s.SenderID,
+	}
+	body, _ := json.Marshal(params)
+	resp, _ := httplib.Post(localUrl()+"/continue").Header("Content-Type", "application/json").Body(body).Bytes()
+	rlt, _ := jsonparser.GetBool(resp, "data")
+	return rlt
+}
+
 func (s *Sender) GetImtype() string {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
