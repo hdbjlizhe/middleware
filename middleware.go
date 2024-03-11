@@ -341,7 +341,7 @@ func (s *Sender) SetContinue() bool {
 	}
 	body, _ := json.Marshal(params)
 	resp, _ := httplib.Post(localUrl()+"/continue").Header("Content-Type", "application/json").Body(body).Bytes()
-	rlt, _ := jsonparser.GetBool(resp, "data")
+	rlt, _ := jsonparser.GetBoolean(resp, "data")
 	return rlt
 }
 
