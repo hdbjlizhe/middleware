@@ -510,6 +510,26 @@ func (s *Sender) Reply(text string) ([]string, error) {
 }
 
 /*
+* @description: 回复markdown
+* @param {string} text markdown字符串
+ */
+func (s *Sender) ReplyMarkdown(text string) ([]string, error) {
+	params := map[string]interface{}{
+		"senderid": s.SenderID,
+		"markdown":     text,
+	}
+	body, _ := json.Marshal(params)
+	var msgIds []string
+	if resp, err := httplib.Post(localUrl()+"/sendMarkdown").Header("Content-Type", "application/json").Body(body).Bytes(); err == nil {
+		if data, err := jsonparser.GetUnsafeString(resp, "data"); err == nil {
+			json.Unmarshal([]byte(data), &msgIds)
+			return msgIds, nil
+		}
+	}
+	return nil, errors.New("回复失败")
+}
+
+/*
 * @description: 回复图片
 * @param {string} imageurl 图片链接
 * @return {[]string} 消息ID
