@@ -335,6 +335,99 @@ type Sender struct {
 	SenderID string
 }
 
+/**
+ * @description: 获取数据库key-value的value值
+ * @param {string} bucket
+ * @param {string} key
+ */
+func (s *Sender) BucketGet(bucket, key string) string {
+	params := map[string]interface{}{
+		"senderid": s.SenderID,
+		"bucket": bucket,
+		"key":    key,
+	}
+	body, _ := json.Marshal(params)
+	resp, _ := httplib.Post(localUrl()+"/bucketGet").Header("Content-Type", "application/json").Body(body).Bytes()
+	rlt, _ := jsonparser.GetString(resp, "data")
+	return rlt
+}
+
+/**
+ * @description: 设置数据库key-value的value值
+ * @param {string} bucket
+ * @param {string} key
+ * @param {string} value
+ */
+func (s *Sender) BucketSet(bucket, key, value string) error {
+	params := map[string]interface{}{
+		"senderid": s.SenderID,
+		"bucket": bucket,
+		"key":    key,
+		"value":  value,
+	}
+	body, _ := json.Marshal(params)
+	if _, err := httplib.Post(localUrl()+"/bucketSet").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+/**
+ * @description: 删除数据库key-value的value值
+ * @param {string} bucket
+ * @param {string} key
+ */
+func (s *Sender) BucketDelete(bucket, key string) error {
+	params := map[string]interface{}{
+		"senderid": s.SenderID,
+		"bucket": bucket,
+		"key":    key,
+	}
+	body, _ := json.Marshal(params)
+	if _, err := httplib.Post(localUrl()+"/bucketDel").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+/**
+ * @description: 获取指定数据库的所有为value的keys
+ * @param {string} bucket
+ * @param {string} value
+ */
+func (s *Sender) BucketKeys(bucket, value string) []string {
+	params := map[string]interface{}{
+		"senderid": s.SenderID,
+		"bucket": bucket,
+		"value":  value,
+	}
+	body, _ := json.Marshal(params)
+	resp, _ := httplib.Post(localUrl()+"/bucketKeys").Header("Content-Type", "application/json").Body(body).Bytes()
+	data, _ := jsonparser.GetUnsafeString(resp, "data")
+	rlt := []string{}
+	json.Unmarshal([]byte(data), &rlt)
+	return rlt
+}
+
+/**
+ * @description: 获取指定数据桶所有的key集合
+ * @param {string} bucket
+ */
+func (s *Sender) BucketAllKeys(bucket string) []string {
+	params := map[string]interface{}{
+		"senderid": s.SenderID,
+		"bucket": bucket,
+	}
+	body, _ := json.Marshal(params)
+	resp, _ := httplib.Post(localUrl()+"/bucketAllKeys").Header("Content-Type", "application/json").Body(body).Bytes()
+	data, _ := jsonparser.GetUnsafeString(resp, "data")
+	rlt := []string{}
+	json.Unmarshal([]byte(data), &rlt)
+	return rlt
+}
+
 func (s *Sender) SetContinue() bool {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
