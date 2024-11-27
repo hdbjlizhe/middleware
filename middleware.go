@@ -157,13 +157,16 @@ func Version() string {
  * @description: 获取用户otto数据库key-value的value值
  * @param {string} key
  */
-func Get(key string) string {
+func Get(key string,defaultValue ...string) string {
 	params := map[string]interface{}{
 		"key": key,
 	}
 	body, _ := json.Marshal(params)
 	resp, _ := httplib.Post(localUrl()+"/get").Header("Content-Type", "application/json").Body(body).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
+	if rlt==""{
+		return defaultValue
+	}
 	return rlt
 }
 
