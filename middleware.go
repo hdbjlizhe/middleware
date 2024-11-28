@@ -164,8 +164,8 @@ func Get(key string,defaultValue ...string) string {
 	body, _ := json.Marshal(params)
 	resp, _ := httplib.Post(localUrl()+"/get").Header("Content-Type", "application/json").Body(body).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
-	if rlt==""{
-		return defaultValue
+	if rlt==""&&len(defaultValue)>0{
+		return defaultValue[0]
 	}
 	return rlt
 }
