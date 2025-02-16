@@ -21,7 +21,7 @@ import (
 var Port string
 
 func localUrl() string {
-	return "http://localhost:" + Port + "/otto"
+	return "http://127.0.0.1:" + Port + "/otto"
 }
 
 /**
