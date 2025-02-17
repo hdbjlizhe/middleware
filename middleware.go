@@ -2,10 +2,12 @@ package middleware
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -20,8 +22,20 @@ import (
 // /////////////////////////////////////////////////////////////////////////////////////////////////////
 var Port string
 
-func localUrl() string {
+const socketPath = "/tmp/autMan.sock"
+
+var transport = &http.Transport{
+	DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+		return net.Dial("unix", socketPath)
+	},
+}
+
+func httpUrl() string {
 	return "http://127.0.0.1:" + Port + "/otto"
+}
+
+func sockUrl() string {
+	return "http://127.0.0.1/sock"
 }
 
 /**
@@ -37,9 +51,9 @@ func SetPort() {
  * @param {string} userid 用户ID
  * @param {func(string)} func 消息监听句柄，回调函数
  */
-func AddMsgListener(imtype,chatid, userid string, exitChannel chan struct{}, function func(string)) {
+func AddMsgListener(imtype, chatid, userid string, exitChannel chan struct{}, function func(string)) {
 	//创建ess连接
-	url := fmt.Sprintf("%s/msghook", localUrl())
+	url := fmt.Sprintf("%s/msghook", httpUrl())
 
 	// 向SSE服务端发起POST请求
 	req, err := http.NewRequest("POST", url, nil)
@@ -50,7 +64,7 @@ func AddMsgListener(imtype,chatid, userid string, exitChannel chan struct{}, fun
 	// 设置Header
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Content-Type", "application/json")
-	req.Body = io.NopCloser(strings.NewReader(fmt.Sprintf(`{"imtype":"%s","chatid":"%s","userid":"%s"}`,imtype, chatid, userid)))
+	req.Body = io.NopCloser(strings.NewReader(fmt.Sprintf(`{"imtype":"%s","chatid":"%s","userid":"%s"}`, imtype, chatid, userid)))
 
 	// 发起请求
 	client := &http.Client{}
@@ -118,7 +132,7 @@ func Push(imType, groupCode, userID, title, content string) error {
 		"content":   content,
 	}
 	body, _ := json.Marshal(params)
-	_, err := httplib.Post(localUrl()+"/push").Header("Content-Type", "application/json").Body(body).Bytes()
+	_, err := httplib.Post(sockUrl()+"/push").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	if err != nil {
 		return err
 	} else {
@@ -130,7 +144,7 @@ func Push(imType, groupCode, userID, title, content string) error {
  * @description: 获取autMan名字
  */
 func Name() string {
-	resp, _ := httplib.Post(localUrl()+"/name").Header("Content-Type", "application/json").Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/name").Header("Content-Type", "application/json").Bytes()
 	name, _ := jsonparser.GetString(resp, "data")
 	return name
 }
@@ -139,7 +153,7 @@ func Name() string {
  * @description: 获取autMan机器码
  */
 func MachineId() string {
-	resp, _ := httplib.Post(localUrl()+"/machineId").Header("Content-Type", "application/json").Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/machineId").Header("Content-Type", "application/json").Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -148,7 +162,7 @@ func MachineId() string {
  * @description: 获取autMan版本，结果是json字符串{"sn":"1.9.8","content":["版本更新内容1","版本更新内容2"]}
  */
 func Version() string {
-	resp, _ := httplib.Post(localUrl()+"/version").Header("Content-Type", "application/json").Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/version").Header("Content-Type", "application/json").Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -157,14 +171,14 @@ func Version() string {
  * @description: 获取用户otto数据库key-value的value值
  * @param {string} key
  */
-func Get(key string,defaultValue ...string) string {
+func Get(key string, defaultValue ...string) string {
 	params := map[string]interface{}{
 		"key": key,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/get").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/get").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
-	if rlt==""&&len(defaultValue)>0{
+	if rlt == "" && len(defaultValue) > 0 {
 		return defaultValue[0]
 	}
 	return rlt
@@ -181,7 +195,7 @@ func Set(key, value string) error {
 		"value": value,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/set").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/set").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -197,7 +211,7 @@ func Delete(key string) error {
 		"key": key,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/delete").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/delete").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -215,7 +229,7 @@ func BucketGet(bucket, key string) string {
 		"key":    key,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/bucketGet").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/bucketGet").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -233,7 +247,7 @@ func BucketSet(bucket, key, value string) error {
 		"value":  value,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/bucketSet").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/bucketSet").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -251,7 +265,7 @@ func BucketDelete(bucket, key string) error {
 		"key":    key,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/bucketDel").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/bucketDel").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -269,7 +283,7 @@ func BucketKeys(bucket, value string) []string {
 		"value":  value,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/bucketKeys").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/bucketKeys").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	data, _ := jsonparser.GetUnsafeString(resp, "data")
 	rlt := []string{}
 	json.Unmarshal([]byte(data), &rlt)
@@ -285,7 +299,7 @@ func BucketAllKeys(bucket string) []string {
 		"bucket": bucket,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/bucketAllKeys").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/bucketAllKeys").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	data, _ := jsonparser.GetUnsafeString(resp, "data")
 	rlt := []string{}
 	json.Unmarshal([]byte(data), &rlt)
@@ -303,7 +317,7 @@ func NotifyMasters(content string, imtypes []string) error {
 		"imtypes": imtypes,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/notifyMasters").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/notifyMasters").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -314,7 +328,7 @@ func NotifyMasters(content string, imtypes []string) error {
  * @description: 当前系统授权的激活状态
  */
 func Coffee() bool {
-	resp, _ := httplib.Post(localUrl()+"/coffee").Header("Content-Type", "application/json").Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/coffee").Header("Content-Type", "application/json").Bytes()
 	rlt, _ := jsonparser.GetBoolean(resp, "data")
 	return rlt
 }
@@ -329,7 +343,7 @@ func Promotion(msg string) string {
 		"msg": msg,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/spread").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/spread").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -346,11 +360,11 @@ type Sender struct {
 func (s *Sender) BucketGet(bucket, key string) string {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
-		"bucket": bucket,
-		"key":    key,
+		"bucket":   bucket,
+		"key":      key,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/bucketGet").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/bucketGet").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -364,12 +378,12 @@ func (s *Sender) BucketGet(bucket, key string) string {
 func (s *Sender) BucketSet(bucket, key, value string) error {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
-		"bucket": bucket,
-		"key":    key,
-		"value":  value,
+		"bucket":   bucket,
+		"key":      key,
+		"value":    value,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/bucketSet").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/bucketSet").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -384,11 +398,11 @@ func (s *Sender) BucketSet(bucket, key, value string) error {
 func (s *Sender) BucketDelete(bucket, key string) error {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
-		"bucket": bucket,
-		"key":    key,
+		"bucket":   bucket,
+		"key":      key,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/bucketDel").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/bucketDel").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -403,11 +417,11 @@ func (s *Sender) BucketDelete(bucket, key string) error {
 func (s *Sender) BucketKeys(bucket, value string) []string {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
-		"bucket": bucket,
-		"value":  value,
+		"bucket":   bucket,
+		"value":    value,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/bucketKeys").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/bucketKeys").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	data, _ := jsonparser.GetUnsafeString(resp, "data")
 	rlt := []string{}
 	json.Unmarshal([]byte(data), &rlt)
@@ -421,10 +435,10 @@ func (s *Sender) BucketKeys(bucket, value string) []string {
 func (s *Sender) BucketAllKeys(bucket string) []string {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
-		"bucket": bucket,
+		"bucket":   bucket,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/bucketAllKeys").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/bucketAllKeys").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	data, _ := jsonparser.GetUnsafeString(resp, "data")
 	rlt := []string{}
 	json.Unmarshal([]byte(data), &rlt)
@@ -436,7 +450,7 @@ func (s *Sender) SetContinue() bool {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/continue").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/continue").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetBoolean(resp, "data")
 	return rlt
 }
@@ -446,7 +460,7 @@ func (s *Sender) GetImtype() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getImtype").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getImtype").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -456,7 +470,7 @@ func (s *Sender) GetUserID() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getUserID").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getUserID").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -466,7 +480,7 @@ func (s *Sender) GetUsername() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getUserName").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getUserName").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -476,7 +490,7 @@ func (s *Sender) GetUserAvatarUrl() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getUserAvatarUrl").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getUserAvatarUrl").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -486,7 +500,7 @@ func (s *Sender) GetChatID() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getChatID").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getChatID").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -496,7 +510,7 @@ func (s *Sender) GetChatName() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getChatName").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getChatName").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -506,7 +520,7 @@ func (s *Sender) IsAdmin() bool {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/isAdmin").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/isAdmin").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetBoolean(resp, "data")
 	return rlt
 }
@@ -516,7 +530,7 @@ func (s *Sender) GetMessage() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getMessage").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getMessage").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -530,7 +544,7 @@ func (s *Sender) GetMessageID() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getMessageID").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getMessageID").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -545,7 +559,7 @@ func (s *Sender) RecallMessage(messageid string) error {
 		"messageid": messageid,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/recallMessage").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/recallMessage").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -562,7 +576,7 @@ func (s *Sender) BreakIn(content string) error {
 		"text":     content,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/breakIn").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/breakIn").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -580,7 +594,7 @@ func (s *Sender) Param(index int) string {
 		"index":    index,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/param").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/param").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -596,7 +610,7 @@ func (s *Sender) Reply(text string) ([]string, error) {
 	}
 	body, _ := json.Marshal(params)
 	var msgIds []string
-	if resp, err := httplib.Post(localUrl()+"/sendText").Header("Content-Type", "application/json").Body(body).Bytes(); err == nil {
+	if resp, err := httplib.Post(sockUrl()+"/sendText").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err == nil {
 		if data, err := jsonparser.GetUnsafeString(resp, "data"); err == nil {
 			json.Unmarshal([]byte(data), &msgIds)
 			return msgIds, nil
@@ -612,11 +626,11 @@ func (s *Sender) Reply(text string) ([]string, error) {
 func (s *Sender) ReplyMarkdown(text string) ([]string, error) {
 	params := map[string]interface{}{
 		"senderid": s.SenderID,
-		"markdown":     text,
+		"markdown": text,
 	}
 	body, _ := json.Marshal(params)
 	var msgIds []string
-	if resp, err := httplib.Post(localUrl()+"/sendMarkdown").Header("Content-Type", "application/json").Body(body).Bytes(); err == nil {
+	if resp, err := httplib.Post(sockUrl()+"/sendMarkdown").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err == nil {
 		if data, err := jsonparser.GetUnsafeString(resp, "data"); err == nil {
 			json.Unmarshal([]byte(data), &msgIds)
 			return msgIds, nil
@@ -637,7 +651,7 @@ func (s *Sender) ReplyImage(imageurl string) ([]string, error) {
 	}
 	body, _ := json.Marshal(params)
 	var msgIds []string
-	if resp, err := httplib.Post(localUrl()+"/sendImage").Header("Content-Type", "application/json").Body(body).Bytes(); err == nil {
+	if resp, err := httplib.Post(sockUrl()+"/sendImage").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err == nil {
 		if data, err := jsonparser.GetUnsafeString(resp, "data"); err == nil {
 			json.Unmarshal([]byte(data), &msgIds)
 			return msgIds, nil
@@ -658,7 +672,7 @@ func (s *Sender) ReplyVoice(voiceurl string) ([]string, error) {
 	}
 	body, _ := json.Marshal(params)
 	var msgIds []string
-	if resp, err := httplib.Post(localUrl()+"/sendVoice").Header("Content-Type", "application/json").Body(body).Bytes(); err == nil {
+	if resp, err := httplib.Post(sockUrl()+"/sendVoice").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err == nil {
 		if data, err := jsonparser.GetUnsafeString(resp, "data"); err == nil {
 			json.Unmarshal([]byte(data), &msgIds)
 			return msgIds, nil
@@ -679,7 +693,7 @@ func (s *Sender) ReplyVideo(videourl string) ([]string, error) {
 	}
 	body, _ := json.Marshal(params)
 	var msgIds []string
-	if resp, err := httplib.Post(localUrl()+"/sendVideo").Header("Content-Type", "application/json").Body(body).Bytes(); err == nil {
+	if resp, err := httplib.Post(sockUrl()+"/sendVideo").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err == nil {
 		if data, err := jsonparser.GetUnsafeString(resp, "data"); err == nil {
 			json.Unmarshal([]byte(data), &msgIds)
 			return msgIds, nil
@@ -700,7 +714,7 @@ func (s *Sender) Listen(timeout int) string {
 		"timeout":  timeout,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/listen").Header("Content-Type", "application/json").Body(body).SetTimeout(time.Millisecond * time.Duration(timeout),time.Millisecond*time.Duration(timeout)).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/listen").Header("Content-Type", "application/json").Body(body).SetTransport(transport).SetTimeout(time.Millisecond*time.Duration(timeout), time.Millisecond*time.Duration(timeout)).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -717,7 +731,7 @@ func (s *Sender) WaitPay(exitCode string, timeout int) string {
 		"timeout":  timeout,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/waitPay").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/waitPay").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -730,7 +744,7 @@ func (s *Sender) AtWaitPay() bool {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/atWaitPay").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/atWaitPay").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetBoolean(resp, "data")
 	return rlt
 }
@@ -742,7 +756,7 @@ func (s *Sender) GroupInviteIn(friend, group string) error {
 		"group":    group,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/groupInviteIn").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/groupInviteIn").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -755,7 +769,7 @@ func (s *Sender) GroupKick(userid string) error {
 		"userid":   userid,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/groupKick").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/groupKick").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -769,7 +783,7 @@ func (s *Sender) GroupBan(userid string, timeout int) error {
 		"timeout":  timeout,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/groupBan").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/groupBan").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -782,7 +796,7 @@ func (s *Sender) GroupUnban(userid string) error {
 		"userid":   userid,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/groupUnban").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/groupUnban").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -795,7 +809,7 @@ func (s *Sender) GroupWholeBan(userid string) error {
 		"userid":   userid,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/groupWholeBan").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/groupWholeBan").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -808,7 +822,7 @@ func (s *Sender) GroupWholeUnban(userid string) error {
 		"userid":   userid,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/groupWholeUnban").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/groupWholeUnban").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -821,7 +835,7 @@ func (s *Sender) GroupNoticeSend(notice string) error {
 		"notice":   notice,
 	}
 	body, _ := json.Marshal(params)
-	if _, err := httplib.Post(localUrl()+"/groupNoticeSend").Header("Content-Type", "application/json").Body(body).Bytes(); err != nil {
+	if _, err := httplib.Post(sockUrl()+"/groupNoticeSend").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes(); err != nil {
 		return err
 	} else {
 		return nil
@@ -833,7 +847,7 @@ func (s *Sender) GetPluginName() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getPluginName").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getPluginName").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
@@ -843,7 +857,7 @@ func (s *Sender) GetPluginVersion() string {
 		"senderid": s.SenderID,
 	}
 	body, _ := json.Marshal(params)
-	resp, _ := httplib.Post(localUrl()+"/getPluginVersion").Header("Content-Type", "application/json").Body(body).Bytes()
+	resp, _ := httplib.Post(sockUrl()+"/getPluginVersion").Header("Content-Type", "application/json").Body(body).SetTransport(transport).Bytes()
 	rlt, _ := jsonparser.GetString(resp, "data")
 	return rlt
 }
